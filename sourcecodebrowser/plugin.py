@@ -32,7 +32,6 @@ class SourceTree(Gtk.Box):
         self.expanded_rows = {}
         
         # preferences (should be set by plugin)
-        self.show_line_numbers = True
         self.ctags_executable = 'ctags'
         self.expand_rows = True
         self.sort_list = True
@@ -81,17 +80,38 @@ class SourceTree(Gtk.Box):
                                     GObject.TYPE_STRING,    # kind
                                     GObject.TYPE_STRING,    # uri 
                                     GObject.TYPE_STRING,    # line               
-                                    GObject.TYPE_STRING)    # markup                           
+                                    GObject.TYPE_STRING)    # markup
+            
         self._treeview = Gtk.TreeView.new_with_model(self._store)
-        self._treeview.set_headers_visible(False)          
+        self._treeview.set_headers_visible(True)
+        
         column = Gtk.TreeViewColumn("Symbol")
+        column.set_expand(True)
+        column.set_resizable(True)
+        #column.set_sizing(Gtk.TreeViewColumnSizing.AUTOSIZE)
+        column.set_min_width(100)
         cell = Gtk.CellRendererPixbuf()
         column.pack_start(cell, False)
         column.add_attribute(cell, 'pixbuf', 0)
         cell = Gtk.CellRendererText()
+        cell.set_property('family','Monospace')
+        cell.set_property('width',-1)
+        #cell.set_property('editable',True)
         column.pack_start(cell, True)
         column.add_attribute(cell, 'markup', 5)
         self._treeview.append_column(column)
+        
+        self.line_column = Gtk.TreeViewColumn("Line")
+        self.line_column.set_expand(False)
+        self.line_column.set_resizable(False)
+        self.line_column.set_sizing(Gtk.TreeViewColumnSizing.AUTOSIZE)
+        self.line_column.set_min_width(30)
+        cell = Gtk.CellRendererText()
+        cell.set_property('family','Monospace')
+        cell.set_property('xalign',1)
+        self.line_column.pack_start(cell, True)
+        self.line_column.add_attribute(cell, 'markup', 4)
+        self._treeview.append_column(self.line_column)
         
         self._treeview.connect("row-activated", self.on_row_activated)
         
@@ -146,10 +166,7 @@ class SourceTree(Gtk.Box):
             if "class" not in tag.fields: 
                 parent_iter = None
                 pixbuf = self.get_pixbuf(tag.kind.icon_name())
-                if 'line' in tag.fields and self.show_line_numbers:
-                    markup = "%s [%s]" % (tag.name, tag.fields['line'])
-                else:
-                    markup = tag.name
+                markup = tag.name
                 kind_iter = self._get_kind_iter(tag.kind, uri, parent_iter)
                 new_iter = self._store.append(kind_iter, (pixbuf, 
                                                           tag.name, 
@@ -161,10 +178,7 @@ class SourceTree(Gtk.Box):
         for tag in tags:
             if "class" in tag.fields and "." not in tag.fields['class']:
                 pixbuf = self.get_pixbuf(tag.kind.icon_name())
-                if 'line' in tag.fields and self.show_line_numbers:
-                    markup = "%s [%s]" % (tag.name, tag.fields['line'])
-                else:
-                    markup = tag.name
+                markup = tag.name
                 for parent_tag in tags:
                     if parent_tag.name == tag.fields['class']:
                         break
@@ -327,7 +341,7 @@ class SourceCodeBrowserPlugin(GObject.Object, Gedit.WindowActivatable, PeasGtk.C
         self._version_check()
         self._sourcetree = SourceTree()
         self._sourcetree.ctags_executable = self.ctags_executable
-        self._sourcetree.show_line_numbers = self.show_line_numbers
+        self._sourcetree.line_column.set_visible(self.show_line_numbers)
         self._sourcetree.expand_rows = self.expand_rows
         self._sourcetree.sort_list = self.sort_list
         panel = self.window.get_side_panel()
@@ -446,7 +460,7 @@ class SourceCodeBrowserPlugin(GObject.Object, Gedit.WindowActivatable, PeasGtk.C
         
         if self._sourcetree is not None:
             self._sourcetree.ctags_executable = self.ctags_executable
-            self._sourcetree.show_line_numbers = self.show_line_numbers
+            self._sourcetree.line_column.set_visible(self.show_line_numbers)
             self._sourcetree.expand_rows = self.expand_rows
             self._sourcetree.sort_list = self.sort_list
             self._sourcetree.expanded_rows = {}
